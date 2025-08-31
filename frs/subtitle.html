@@ -72,7 +72,7 @@
         }
         #o {
             flex-grow: 1;
-            background: var(--cbg);
+            background: var(--bg);
             padding: 25px;
             border-radius: 8px;
             text-align: left;
@@ -81,13 +81,12 @@
             overflow-y: auto;
             line-height: 1.8;
             font-size: 1.1em;
-            border: 1px solid var(--b);
-            box-shadow: 0 4px 12px var(--s);
-            margin: 0 20px 20px;
+            margin: 0 0px 0px;
         }
         #o.p {
             text-align: center;
             display: flex;
+            margin:0;
             align-items: center;
             justify-content: center;
             color: #888;
@@ -101,21 +100,26 @@
 </head>
 <body>
     <div class="h">
-        <h1>SRT Text</h1>
+        <h1>Subtitle File</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
             <label for="i" class="l"><i class="fas fa-file-import"></i></label>
             <button class="b" id="t"><i class="fas fa-moon"></i></button>
         </div>
     </div>
     <input type="file" id="i" accept=".srt">
-    <pre id="o" class="p">Your extracted dialogue will appear here.</pre>
+    <pre id="o" class="p"> output nk.</pre>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const themeToggleBtn = document.getElementById('t');
             const body = document.body;
             const themeIcon = themeToggleBtn.querySelector('i');
+            const outputElement = document.getElementById('o');
+            const fileInput = document.getElementById('i');
 
-            // Load theme from localStorage
+            const DB_NAME = 'misrtfile';
+            const DB_VERSION = 1;
+            const STORE_NAME = 'srt_data';
+
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
                 body.classList.add(savedTheme);
@@ -132,29 +136,94 @@
                 themeIcon.classList.toggle('fa-sun', isDark);
                 themeIcon.classList.toggle('fa-moon', !isDark);
             });
-        });
 
-        document.getElementById('i').addEventListener('change', e => {
-            const f = e.target.files[0];
-            if (!f) return;
-            const r = new FileReader();
-            r.onload = e => {
-                const d = e.target.result;
-                const l = d.split('\n');
-                let t = '';
-                let i=1;
-                for (let s of l) {
-                    s = s.trim();
-                    if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
-                        t += i+". "+ s + '\n\n';
-                        i++;
-                    }
+            function openDb() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                    request.onupgradeneeded = event => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(STORE_NAME)) {
+                            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                        }
+                    };
+
+                    request.onsuccess = event => {
+                        resolve(event.target.result);
+                    };
+
+                    request.onerror = event => {
+                        console.error('IndexedDB error:', event.target.errorCode);
+                        reject(event.target.errorCode);
+                    };
+                });
+            }
+
+            async function saveFileContent(content) {
+                try {
+                    const db = await openDb();
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    
+                  
+                    await new Promise(resolve => {
+                        const clearRequest = store.clear();
+                        clearRequest.onsuccess = resolve;
+                    });
+                    
+                   
+                    store.add({ id: 1, text: content });
+                    await tx.complete;
+                } catch (error) {
+                    console.error('Error saving to IndexedDB:', error);
                 }
-                const o = document.getElementById('o');
-                o.textContent = t.trim() || "No readable dialogue found.";
-                o.classList.toggle('p', !t.trim());
-            };
-            r.readAsText(f);
+            }
+
+            async function loadLastFile() {
+                try {
+                    const db = await openDb();
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const request = store.get(1);
+
+                    request.onsuccess = () => {
+                        const result = request.result;
+                        if (result && result.text) {
+                            outputElement.textContent = result.text;
+                            outputElement.classList.remove('p');
+                        }
+                    };
+                } catch (error) {
+                    console.error('Error loading from IndexedDB:', error);
+                }
+            }
+
+            fileInput.addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const data = e.target.result;
+                    const lines = data.split('\n');
+                    let extractedText = '';
+                    let index = 1;
+                    for (let s of lines) {
+                        s = s.trim();
+                        if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
+                            extractedText += index + ". " + s + '\n\n';
+                            index++;
+                        }
+                    }
+                    const trimmedText = extractedText.trim();
+                    outputElement.textContent = trimmedText || "No readable dialogue found.";
+                    outputElement.classList.toggle('p', !trimmedText);
+                    
+                    saveFileContent(trimmedText);
+                };
+                reader.readAsText(file);
+            });
+
+            loadLastFile();
         });
     </script>
 </body>
