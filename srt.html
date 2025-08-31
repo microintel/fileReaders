@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --bg: #f0f0f0;
+            --t: #333;
+            --cbg: #fff;
+            --s: rgba(0, 0, 0, 0.1);
+            --b: #ddd;
+        }
+        body.dark {
+            --bg: #2c2c2c;
+            --t: #f0f0f0;
+            --cbg: #3c3c3c;
+            --s: rgba(0, 0, 0, 0.3);
+            --b: #555;
+        }
+        body {
+            font-family: sans-serif;
+            background: var(--bg);
+            color: var(--t);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s, color 0.3s;
+        }
+        .h {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 2em;
+            margin: 0;
+        }
+        .b {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: var(--t);
+        }
+        .b:hover {
+            color: #4CAF50;
+        }
+        #i {
+            display: none;
+        }
+        .l {
+            display: inline-block;
+            background: var(--cbg);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 1.5em;
+            box-shadow: 0 2px 5px var(--s);
+            transition: background 0.3s, transform 0.2s;
+        }
+        .l:hover {
+            transform: translateY(-2px);
+        }
+        #o {
+            flex-grow: 1;
+            background: var(--cbg);
+            padding: 25px;
+            border-radius: 8px;
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+            line-height: 1.8;
+            font-size: 1.1em;
+            border: 1px solid var(--b);
+            box-shadow: 0 4px 12px var(--s);
+            margin: 0 20px 20px;
+        }
+        #o.p {
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+        }
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5em; }
+            .l { width: 40px; height: 40px; font-size: 1.2em; }
+            #o { font-size: 1em; padding: 15px; margin: 0 10px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="h">
+        <h1>SRT Viewer</h1>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <label for="i" class="l"><i class="fas fa-file-import"></i></label>
+            <button class="b" id="t"><i class="fas fa-moon"></i></button>
+        </div>
+    </div>
+    <input type="file" id="i" accept=".srt">
+    <pre id="o" class="p">Your extracted dialogue will appear here.</pre>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggleBtn = document.getElementById('t');
+            const body = document.body;
+            const themeIcon = themeToggleBtn.querySelector('i');
+
+            // Load theme from localStorage
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                body.classList.add(savedTheme);
+                if (savedTheme === 'dark') {
+                    themeIcon.classList.remove('fa-moon');
+                    themeIcon.classList.add('fa-sun');
+                }
+            }
+
+            themeToggleBtn.addEventListener('click', () => {
+                body.classList.toggle('dark');
+                const isDark = body.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : '');
+                themeIcon.classList.toggle('fa-sun', isDark);
+                themeIcon.classList.toggle('fa-moon', !isDark);
+            });
+        });
+
+        document.getElementById('i').addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = e => {
+                const d = e.target.result;
+                const l = d.split('\n');
+                let t = '';
+                let i=1;
+                for (let s of l) {
+                    s = s.trim();
+                    if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
+                        t += i+". "+ s + '\n\n';
+                        i++;
+                    }
+                }
+                const o = document.getElementById('o');
+                o.textContent = t.trim() || "No readable dialogue found.";
+                o.classList.toggle('p', !t.trim());
+            };
+            r.readAsText(f);
+        });
+    </script>
+</body>
+</html>
