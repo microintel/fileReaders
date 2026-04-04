@@ -53,7 +53,6 @@
             display: none;
         }
         .l {
-            display: inline-block;
             background: var(--cbg);
             border-radius: 50%;
             width: 50px;
@@ -64,7 +63,7 @@
             cursor: pointer;
             font-size: 1.5em;
             box-shadow: 0 2px 5px var(--s);
-            transition: background 0.3s, transform 0.2s;
+            transition: transform 0.2s;
         }
         .l:hover {
             transform: translateY(-2px);
@@ -74,9 +73,6 @@
             background: var(--cbg);
             padding: 25px;
             border-radius: 8px;
-            text-align: left;
-            white-space: pre-wrap;
-            word-wrap: break-word;
             overflow-y: auto;
             line-height: 1.8;
             font-size: 1.1em;
@@ -91,108 +87,337 @@
             justify-content: center;
             color: #888;
         }
+
+        /* clickable word style */
+        .word {
+            cursor: pointer;
+            padding: 2px 3px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .word:hover {
+            background: rgba(76, 175, 80, 0.2);
+        }
+
         @media (max-width: 600px) {
             h1 { font-size: 1.5em; }
             .l { width: 40px; height: 40px; font-size: 1.2em; }
             #o { font-size: 1em; padding: 15px; margin: 0 10px 10px; }
         }
+        .popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 9999;
+}
+
+.popup-content {
+  background: #fff;
+  width: 100%;
+  max-height: 90%;
+  border-radius: 20px 20px 0 0;
+  padding: 15px;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+  font-family: sans-serif;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.close-btn {
+  font-size: 25px;
+  float: right;
+  cursor: pointer;
+}
+
+.word-title {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.phonetic {
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.section {
+  margin-top: 15px;
+}
+
+.part {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.definition {
+  margin-left: 10px;
+  margin-bottom: 8px;
+}
+
+.example {
+  color: #777;
+  font-style: italic;
+  margin-left: 15px;
+}
+
+.tense-box {
+  background: #f1f1f1;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+button {
+  font-size: 14px;
+}
+
+.close-btn {
+  font-size: 28px;
+  cursor: pointer;
+  position: absolute;
+  right: 15px;
+  top: 10px;
+  z-index: 10000; /* 🔥 important */
+}
+
+.popup-content {
+  position: relative; /* needed for absolute close button */
+}
     </style>
+   
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.23.0/sweetalert2.min.css">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.23.0/sweetalert2.all.min.js"></script>
 </head>
 <body>
-    <div class="h">
-        <h1>SRT Viewer</h1>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <label for="i" class="l" title="Import SRT"><i class="fas fa-file-import"></i></label>
-            <button class="b" id="w" title="Extract Unique Words"><i class="fas fa-file-word"></i></button>
-            <button class="b" id="t" title="Toggle Theme"><i class="fas fa-moon"></i></button>
-        </div>
+
+<div class="h">
+    <h1>SRT Viewer</h1>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <label for="i" class="l"><i class="fas fa-file-import"></i></label>
+        <button class="b" id="w"><i class="fas fa-file-word"></i></button>
+        <button class="b" id="t"><i class="fas fa-moon"></i></button>
     </div>
-    <input type="file" id="i" accept=".srt">
-    <pre id="o" class="p">Your extracted dialogue will appear here.</pre>
+</div>
 
-    <script>
-        let srtText = ''; // store SRT text globally
+<input type="file" id="i" accept=".srt">
+<div id="o" class="p">Your extracted dialogue will appear here.</div>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const themeToggleBtn = document.getElementById('t');
-            const body = document.body;
-            const themeIcon = themeToggleBtn.querySelector('i');
+<div id="dictPopup" class="popup" onclick="outsideClick(event)">
+  <div class="popup-content">
+    <span class="close-btn" onclick="closePopup(event)">×</span>
+    <div id="popupBody"></div>
+  </div>
+</div>
 
-            // Load theme from localStorage
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) {
-                body.classList.add(savedTheme);
-                if (savedTheme === 'dark') {
-                    themeIcon.classList.remove('fa-moon');
-                    themeIcon.classList.add('fa-sun');
-                }
+<script>
+let srtText = '';
+let currentAudio = null;
+
+// ✅ CLOSE POPUP (FIXED)
+function closePopup(e) {
+    if (e) e.stopPropagation();
+    document.getElementById("dictPopup").style.display = "none";
+
+    // stop audio if playing
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+}
+
+// ✅ CLICK OUTSIDE CLOSE
+function outsideClick(e) {
+    if (e.target.id === "dictPopup") {
+        closePopup();
+    }
+}
+
+const output = document.getElementById('o');
+const fileInput = document.getElementById('i');
+
+// THEME
+document.getElementById('t').addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+});
+
+// LOAD FILE
+fileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        srtText = e.target.result;
+        const lines = srtText.split('\n');
+
+        let t = '';
+        let index = 1;
+
+        for (let s of lines) {
+            s = s.trim();
+            if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
+
+                let words = s.split(/\s+/).map(w => {
+                    return `<span class="word">${w}</span>`;
+                }).join(' ');
+
+                t += index + ". " + words + "<br><br>";
+                index++;
             }
+        }
 
-            themeToggleBtn.addEventListener('click', () => {
-                body.classList.toggle('dark');
-                const isDark = body.classList.contains('dark');
-                localStorage.setItem('theme', isDark ? 'dark' : '');
-                themeIcon.classList.toggle('fa-sun', isDark);
-                themeIcon.classList.toggle('fa-moon', !isDark);
+        output.innerHTML = t || "No readable dialogue found.";
+        output.classList.toggle('p', !t);
+    };
+
+    reader.readAsText(f);
+});
+
+// CLICK WORD
+output.addEventListener('click', (e) => {
+    if (e.target.classList.contains('word')) {
+        let word = e.target.textContent.replace(/[^a-zA-Z']/g, '');
+        if (word) {
+            showWordDetails(word.toLowerCase());
+        }
+    }
+});
+
+// UNIQUE WORD DOWNLOAD
+document.getElementById('w').addEventListener('click', () => {
+    if (!srtText) {
+        alert("Import SRT first!");
+        return;
+    }
+
+    let wordsSet = new Set();
+
+    srtText.split('\n').forEach(line => {
+        line = line.trim();
+        if (!line.includes('-->') && isNaN(parseInt(line)) && line !== '') {
+            line.split(/\s+/).forEach(word => {
+                word = word.replace(/[^a-zA-Z']/g, '').toLowerCase();
+                if (word) wordsSet.add(word);
             });
-        });
+        }
+    });
 
-        const output = document.getElementById('o');
-        const fileInput = document.getElementById('i');
+    const wordsArray = Array.from(wordsSet).sort();
+    const textContent = wordsArray.map((w, i) => (i + 1) + "-> " + w).join('\n');
 
-        fileInput.addEventListener('change', e => {
-            const f = e.target.files[0];
-            if (!f) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                srtText = e.target.result;
-                const lines = srtText.split('\n');
-                let t = '';
-                let i = 1;
-                for (let s of lines) {
-                    s = s.trim();
-                    if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
-                        t += i + ". " + s + '\n\n';
-                        i++;
-                    }
-                }
-                output.textContent = t.trim() || "No readable dialogue found.";
-                output.classList.toggle('p', !t.trim());
-            };
-            reader.readAsText(f);
-        });
+    const blob = new Blob([textContent], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'nkn_words.txt';
+    a.click();
+});
 
-        // Unique words extraction and download
-        document.getElementById('w').addEventListener('click', () => {
-            if (!srtText) {
-                alert("Please import an SRT file first!");
-                return;
+// ✅ GET REAL WORD FORMS (TENSES)
+async function getWordForms(word) {
+    try {
+        const res = await fetch(`https://api.datamuse.com/words?rel_inflected=${word}`);
+        const data = await res.json();
+
+        return data.map(d => d.word);
+    } catch {
+        return [];
+    }
+}
+
+// ✅ MAIN FUNCTION
+async function showWordDetails(word) {
+    if (!word) return;
+
+    try {
+        const [dictRes, forms] = await Promise.all([
+            fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`),
+            getWordForms(word)
+        ]);
+
+        const data = await dictRes.json();
+
+        if (!Array.isArray(data)) {
+            alert("No results found");
+            return;
+        }
+
+        const entry = data[0];
+
+        // Pronunciation
+        let phonetic = entry.phonetic || "";
+        let audio = "";
+
+        if (entry.phonetics) {
+            const audioObj = entry.phonetics.find(p => p.audio);
+            if (audioObj) {
+                audio = audioObj.audio;
+                phonetic = audioObj.text || phonetic;
             }
+        }
 
-            const lines = srtText.split('\n');
-            let wordsSet = new Set();
+        let html = `
+            <div class="word-title">${entry.word}</div>
+            ${phonetic ? `<div class="phonetic">${phonetic}</div>` : ""}
+            
+            ${audio ? `
+                <button onclick="playAudio('${audio}')"
+                style="margin:10px 0;padding:8px 12px;border:none;border-radius:8px;background:#4CAF50;color:#fff;">
+                🔊 Play Pronunciation
+                </button>
+            ` : ""}
+        `;
 
-            for (let line of lines) {
-                line = line.trim();
-                if (!line.includes('-->') && isNaN(parseInt(line)) && line !== '') {
-                    line.split(/\s+/).forEach(word => {
-                        word = word.replace(/[^a-zA-Z0-9']/g, '').toLowerCase();
-                        if (word) wordsSet.add(word);
-                    });
+        // ✅ REAL WORD FORMS
+        if (forms.length > 0) {
+            html += `
+                <div class="section tense-box">
+                    <b>Word Forms:</b><br>
+                    ${forms.slice(0, 8).join(", ")}
+                </div>
+            `;
+        }
+
+        // Meanings
+        entry.meanings.forEach((meaning) => {
+            html += `<div class="section">`;
+            html += `<div class="part">${meaning.partOfSpeech}</div>`;
+
+            meaning.definitions.forEach(def => {
+                html += `<div class="definition">• ${def.definition}</div>`;
+                if (def.example) {
+                    html += `<div class="example">Example: ${def.example}</div>`;
                 }
-            }
+            });
 
-            const wordsArray = Array.from(wordsSet).sort();
-            let textContent = wordsArray.map((w, idx) => (idx + 1) + "-> " + w).join('\n');
-
-            // Create and download file
-            const blob = new Blob([textContent], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'nkn_words.txt';
-            a.click();
-            URL.revokeObjectURL(a.href);
+            html += `</div>`;
         });
-    </script>
+
+        document.getElementById("popupBody").innerHTML = html;
+        document.getElementById("dictPopup").style.display = "flex";
+
+    } catch (err) {
+        console.error(err);
+        alert("Error fetching data");
+    }
+}
+
+// 🔊 AUDIO (FIXED: no overlap)
+function playAudio(url) {
+    if (currentAudio) {
+        currentAudio.pause();
+    }
+    currentAudio = new Audio(url);
+    currentAudio.play();
+}
+</script>
 </body>
 </html>
