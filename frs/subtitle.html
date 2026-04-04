@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRT Text</title>
+    <title>SRT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         :root {
@@ -72,7 +71,7 @@
         }
         #o {
             flex-grow: 1;
-            background: var(--bg);
+            background: var(--cbg);
             padding: 25px;
             border-radius: 8px;
             text-align: left;
@@ -81,12 +80,13 @@
             overflow-y: auto;
             line-height: 1.8;
             font-size: 1.1em;
-            margin: 0 0px 0px;
+            border: 1px solid var(--b);
+            box-shadow: 0 4px 12px var(--s);
+            margin: 0 20px 20px;
         }
         #o.p {
             text-align: center;
             display: flex;
-            margin:0;
             align-items: center;
             justify-content: center;
             color: #888;
@@ -100,26 +100,25 @@
 </head>
 <body>
     <div class="h">
-        <h1>Subtitle File</h1>
+        <h1>SRT Viewer</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <label for="i" class="l"><i class="fas fa-file-import"></i></label>
-            <button class="b" id="t"><i class="fas fa-moon"></i></button>
+            <label for="i" class="l" title="Import SRT"><i class="fas fa-file-import"></i></label>
+            <button class="b" id="w" title="Extract Unique Words"><i class="fas fa-file-word"></i></button>
+            <button class="b" id="t" title="Toggle Theme"><i class="fas fa-moon"></i></button>
         </div>
     </div>
     <input type="file" id="i" accept=".srt">
-    <pre id="o" class="p"> output nk.</pre>
+    <pre id="o" class="p">Your extracted dialogue will appear here.</pre>
+
     <script>
+        let srtText = ''; // store SRT text globally
+
         document.addEventListener('DOMContentLoaded', () => {
             const themeToggleBtn = document.getElementById('t');
             const body = document.body;
             const themeIcon = themeToggleBtn.querySelector('i');
-            const outputElement = document.getElementById('o');
-            const fileInput = document.getElementById('i');
 
-            const DB_NAME = 'misrtfile';
-            const DB_VERSION = 1;
-            const STORE_NAME = 'srt_data';
-
+            // Load theme from localStorage
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
                 body.classList.add(savedTheme);
@@ -136,94 +135,63 @@
                 themeIcon.classList.toggle('fa-sun', isDark);
                 themeIcon.classList.toggle('fa-moon', !isDark);
             });
+        });
 
-            function openDb() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+        const output = document.getElementById('o');
+        const fileInput = document.getElementById('i');
 
-                    request.onupgradeneeded = event => {
-                        const db = event.target.result;
-                        if (!db.objectStoreNames.contains(STORE_NAME)) {
-                            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-                        }
-                    };
-
-                    request.onsuccess = event => {
-                        resolve(event.target.result);
-                    };
-
-                    request.onerror = event => {
-                        console.error('IndexedDB error:', event.target.errorCode);
-                        reject(event.target.errorCode);
-                    };
-                });
-            }
-
-            async function saveFileContent(content) {
-                try {
-                    const db = await openDb();
-                    const tx = db.transaction(STORE_NAME, 'readwrite');
-                    const store = tx.objectStore(STORE_NAME);
-                    
-                  
-                    await new Promise(resolve => {
-                        const clearRequest = store.clear();
-                        clearRequest.onsuccess = resolve;
-                    });
-                    
-                   
-                    store.add({ id: 1, text: content });
-                    await tx.complete;
-                } catch (error) {
-                    console.error('Error saving to IndexedDB:', error);
-                }
-            }
-
-            async function loadLastFile() {
-                try {
-                    const db = await openDb();
-                    const tx = db.transaction(STORE_NAME, 'readonly');
-                    const store = tx.objectStore(STORE_NAME);
-                    const request = store.get(1);
-
-                    request.onsuccess = () => {
-                        const result = request.result;
-                        if (result && result.text) {
-                            outputElement.textContent = result.text;
-                            outputElement.classList.remove('p');
-                        }
-                    };
-                } catch (error) {
-                    console.error('Error loading from IndexedDB:', error);
-                }
-            }
-
-            fileInput.addEventListener('change', e => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const data = e.target.result;
-                    const lines = data.split('\n');
-                    let extractedText = '';
-                    let index = 1;
-                    for (let s of lines) {
-                        s = s.trim();
-                        if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
-                            extractedText += index + ". " + s + '\n\n';
-                            index++;
-                        }
+        fileInput.addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                srtText = e.target.result;
+                const lines = srtText.split('\n');
+                let t = '';
+                let i = 1;
+                for (let s of lines) {
+                    s = s.trim();
+                    if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
+                        t += i + ". " + s + '\n\n';
+                        i++;
                     }
-                    const trimmedText = extractedText.trim();
-                    outputElement.textContent = trimmedText || "No readable dialogue found.";
-                    outputElement.classList.toggle('p', !trimmedText);
-                    
-                    saveFileContent(trimmedText);
-                };
-                reader.readAsText(file);
-            });
+                }
+                output.textContent = t.trim() || "No readable dialogue found.";
+                output.classList.toggle('p', !t.trim());
+            };
+            reader.readAsText(f);
+        });
 
-            loadLastFile();
+        // Unique words extraction and download
+        document.getElementById('w').addEventListener('click', () => {
+            if (!srtText) {
+                alert("Please import an SRT file first!");
+                return;
+            }
+
+            const lines = srtText.split('\n');
+            let wordsSet = new Set();
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line.includes('-->') && isNaN(parseInt(line)) && line !== '') {
+                    line.split(/\s+/).forEach(word => {
+                        word = word.replace(/[^a-zA-Z0-9']/g, '').toLowerCase();
+                        if (word) wordsSet.add(word);
+                    });
+                }
+            }
+
+            const wordsArray = Array.from(wordsSet).sort();
+            let textContent = wordsArray.map((w, idx) => (idx + 1) + "-> " + w).join('\n');
+
+            // Create and download file
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'nkn_words.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
         });
     </script>
 </body>
