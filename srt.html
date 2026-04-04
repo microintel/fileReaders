@@ -102,13 +102,17 @@
     <div class="h">
         <h1>SRT Viewer</h1>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <label for="i" class="l"><i class="fas fa-file-import"></i></label>
-            <button class="b" id="t"><i class="fas fa-moon"></i></button>
+            <label for="i" class="l" title="Import SRT"><i class="fas fa-file-import"></i></label>
+            <button class="b" id="w" title="Extract Unique Words"><i class="fas fa-file-word"></i></button>
+            <button class="b" id="t" title="Toggle Theme"><i class="fas fa-moon"></i></button>
         </div>
     </div>
     <input type="file" id="i" accept=".srt">
     <pre id="o" class="p">Your extracted dialogue will appear here.</pre>
+
     <script>
+        let srtText = ''; // store SRT text globally
+
         document.addEventListener('DOMContentLoaded', () => {
             const themeToggleBtn = document.getElementById('t');
             const body = document.body;
@@ -133,27 +137,61 @@
             });
         });
 
-        document.getElementById('i').addEventListener('change', e => {
+        const output = document.getElementById('o');
+        const fileInput = document.getElementById('i');
+
+        fileInput.addEventListener('change', e => {
             const f = e.target.files[0];
             if (!f) return;
-            const r = new FileReader();
-            r.onload = e => {
-                const d = e.target.result;
-                const l = d.split('\n');
+            const reader = new FileReader();
+            reader.onload = e => {
+                srtText = e.target.result;
+                const lines = srtText.split('\n');
                 let t = '';
-                let i=1;
-                for (let s of l) {
+                let i = 1;
+                for (let s of lines) {
                     s = s.trim();
                     if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
-                        t += i+". "+ s + '\n\n';
+                        t += i + ". " + s + '\n\n';
                         i++;
                     }
                 }
-                const o = document.getElementById('o');
-                o.textContent = t.trim() || "No readable dialogue found.";
-                o.classList.toggle('p', !t.trim());
+                output.textContent = t.trim() || "No readable dialogue found.";
+                output.classList.toggle('p', !t.trim());
             };
-            r.readAsText(f);
+            reader.readAsText(f);
+        });
+
+        // Unique words extraction and download
+        document.getElementById('w').addEventListener('click', () => {
+            if (!srtText) {
+                alert("Please import an SRT file first!");
+                return;
+            }
+
+            const lines = srtText.split('\n');
+            let wordsSet = new Set();
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line.includes('-->') && isNaN(parseInt(line)) && line !== '') {
+                    line.split(/\s+/).forEach(word => {
+                        word = word.replace(/[^a-zA-Z0-9']/g, '').toLowerCase();
+                        if (word) wordsSet.add(word);
+                    });
+                }
+            }
+
+            const wordsArray = Array.from(wordsSet).sort();
+            let textContent = wordsArray.map((w, idx) => (idx + 1) + "-> " + w).join('\n');
+
+            // Create and download file
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'nkn_words.txt';
+            a.click();
+            URL.revokeObjectURL(a.href);
         });
     </script>
 </body>
