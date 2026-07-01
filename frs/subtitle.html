@@ -710,4 +710,97 @@ async function showWordDetails(word) {
             getWordForms(word)
         ]);
 
-        const data = await dictRes.js
+        const data = await dictRes.json();
+
+        if (!Array.isArray(data)) {
+            document.getElementById("popupBody").innerHTML = `<div class="error-state">No definition found for "${escapeHtml(word)}".</div>`;
+            return;
+        }
+
+        const entry = data[0];
+
+        let phonetic = entry.phonetic || "";
+        let audio = "";
+
+        if (entry.phonetics) {
+            const audioObj = entry.phonetics.find(p => p.audio);
+            if (audioObj) {
+                audio = audioObj.audio;
+                phonetic = audioObj.text || phonetic;
+            }
+        }
+
+        let html = `
+            <div class="word-title">${escapeHtml(entry.word)}</div>
+            ${phonetic ? `<div class="phonetic">${escapeHtml(phonetic)}</div>` : ""}
+            ${audio ? `<button class="play-btn" onclick="playAudio('${audio}')"><i class="bi bi-volume-up-fill"></i> Play Pronunciation</button>` : ""}
+        `;
+
+        if (forms.length > 0) {
+            html += `
+                <div class="tense-box">
+                    <b>Word Forms:</b><br>
+                    ${forms.slice(0, 8).map(escapeHtml).join(", ")}
+                </div>
+            `;
+        }
+
+        entry.meanings.forEach((meaning) => {
+            html += `<div class="section">`;
+            html += `<div class="part">${escapeHtml(meaning.partOfSpeech)}</div>`;
+
+            meaning.definitions.forEach(def => {
+                html += `<div class="definition">• ${escapeHtml(def.definition)}</div>`;
+                if (def.example) {
+                    html += `<div class="example">Example: ${escapeHtml(def.example)}</div>`;
+                }
+            });
+
+            html += `</div>`;
+        });
+
+        document.getElementById("popupBody").innerHTML = html;
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("popupBody").innerHTML = `<div class="error-state">Error fetching data. Check your connection and try again.</div>`;
+    }
+}
+
+// 🔊 AUDIO (no overlap)
+function playAudio(url) {
+    if (currentAudio) currentAudio.pause();
+    currentAudio = new Audio(url);
+    currentAudio.play();
+}
+
+// ---------- INIT: restore theme + last file + read progress on reload ----------
+(function init() {
+    let savedTheme = null;
+    try { savedTheme = localStorage.getItem(STORAGE_THEME_KEY); } catch (e) {}
+    if (!savedTheme) {
+        savedTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    applyTheme(savedTheme === 'dark');
+
+    try {
+        const savedText = localStorage.getItem(STORAGE_KEY);
+        const savedName = localStorage.getItem(STORAGE_NAME_KEY);
+        const savedRead = localStorage.getItem(STORAGE_READ_KEY);
+        const savedLast = localStorage.getItem(STORAGE_LASTREAD_KEY);
+
+        if (savedText) {
+            srtText = savedText;
+            currentFilename = savedName || '';
+            filenameLabel.textContent = currentFilename;
+            readLines = new Set(savedRead ? JSON.parse(savedRead) : []);
+            lastReadIdx = savedLast !== null && savedLast !== undefined ? parseInt(savedLast, 10) : null;
+            renderSrt(savedText);
+        }
+    } catch (e) {
+        console.warn('Could not restore saved file', e);
+    }
+})();
+</script>
+</body>
+</html>
