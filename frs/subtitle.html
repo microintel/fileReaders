@@ -1,219 +1,421 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRT</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        :root {
-            --bg: #f0f0f0;
-            --t: #333;
-            --cbg: #fff;
-            --s: rgba(0, 0, 0, 0.1);
-            --b: #ddd;
-        }
-        body.dark {
-            --bg: #2c2c2c;
-            --t: #f0f0f0;
-            --cbg: #3c3c3c;
-            --s: rgba(0, 0, 0, 0.3);
-            --b: #555;
-        }
-        body {
-            font-family: sans-serif;
-            background: var(--bg);
-            color: var(--t);
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: background 0.3s, color 0.3s;
-        }
-        .h {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-        }
-        h1 {
-            font-size: 2em;
-            margin: 0;
-        }
-        .b {
-            background: none;
-            border: none;
-            font-size: 1.5em;
-            cursor: pointer;
-            color: var(--t);
-        }
-        .b:hover {
-            color: #4CAF50;
-        }
-        #i {
-            display: none;
-        }
-        .l {
-            background: var(--cbg);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            font-size: 1.5em;
-            box-shadow: 0 2px 5px var(--s);
-            transition: transform 0.2s;
-        }
-        .l:hover {
-            transform: translateY(-2px);
-        }
-        #o {
-            flex-grow: 1;
-            background: var(--cbg);
-            padding: 25px;
-            border-radius: 8px;
-            overflow-y: auto;
-            line-height: 1.8;
-            font-size: 1.1em;
-            border: 1px solid var(--b);
-            box-shadow: 0 4px 12px var(--s);
-            margin: 0 20px 20px;
-        }
-        #o.p {
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #888;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRT Viewer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<style>
+    :root {
+        --bg: #f2f2f2;
+        --t: #1a1a1a;
+        --t-dim: #666;
+        --cbg: #ffffff;
+        --cbg2: #f6f6f6;
+        --s: rgba(0, 0, 0, 0.08);
+        --b: #e0e0e0;
+        --accent: #3aa757;
+        --accent-t: #ffffff;
+        --danger: #d9534f;
+        --read-bg: rgba(58, 167, 87, 0.08);
+    }
+    body.dark {
+        --bg: #000000;
+        --t: #f2f2f2;
+        --t-dim: #9a9a9a;
+        --cbg: #0c0c0c;
+        --cbg2: #161616;
+        --s: rgba(255, 255, 255, 0.05);
+        --b: #2a2a2a;
+        --accent: #4CAF50;
+        --accent-t: #ffffff;
+        --read-bg: rgba(76, 175, 80, 0.1);
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--t);
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        transition: background 0.25s ease, color 0.25s ease;
+    }
+    .h {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 20px;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .h-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+    h1 {
+        font-size: clamp(1.3em, 4vw, 2em);
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+    .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .filename {
+        font-size: 0.8em;
+        color: var(--t-dim);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 50vw;
+    }
+    .progress-pill {
+        font-size: 0.75em;
+        color: var(--t-dim);
+        background: var(--cbg2);
+        border: 1px solid var(--b);
+        border-radius: 999px;
+        padding: 2px 10px;
+        display: none;
+        white-space: nowrap;
+    }
+    .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .b, .l {
+        background: var(--cbg);
+        border: 1px solid var(--b);
+        color: var(--t);
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        box-shadow: 0 2px 6px var(--s);
+    }
+    .b:hover, .l:hover {
+        transform: translateY(-2px);
+        color: var(--accent);
+        border-color: var(--accent);
+    }
+    .b:active, .l:active {
+        transform: translateY(0);
+    }
+    .b {
+        border-radius: 10px;
+        width: 44px;
+        height: 44px;
+        font-size: 1.15em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .b:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        transform: none;
+        color: var(--t);
+        border-color: var(--b);
+    }
+    #i {
+        display: none;
+    }
+    .l {
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.15em;
+    }
+    #o {
+        flex-grow: 1;
+        background: var(--cbg);
+        padding: clamp(10px, 3vw, 18px);
+        border-radius: 14px;
+        overflow-y: auto;
+        font-size: clamp(1em, 2.2vw, 1.15em);
+        border: 1px solid var(--b);
+        box-shadow: 0 4px 16px var(--s);
+        margin: 0 20px 20px;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        position: relative;
+    }
+    #o.p {
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--t-dim);
+        padding: clamp(16px, 4vw, 28px);
+    }
 
-        /* clickable word style */
-        .word {
-            cursor: pointer;
-            padding: 2px 3px;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-        .word:hover {
-            background: rgba(76, 175, 80, 0.2);
-        }
+    .line {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 10px;
+        border-radius: 10px;
+        line-height: 1.8;
+        cursor: pointer;
+        transition: background 0.2s ease, opacity 0.2s ease;
+    }
+    .line:hover {
+        background: var(--cbg2);
+    }
+    .line.read {
+        background: var(--read-bg);
+        opacity: 0.62;
+    }
+    .line.read:hover {
+        opacity: 0.85;
+    }
+    .line.flash {
+        animation: flashLine 1.1s ease;
+    }
+    @keyframes flashLine {
+        0%   { background: rgba(76, 175, 80, 0.35); }
+        100% { background: transparent; }
+    }
+    .tick {
+        flex-shrink: 0;
+        font-size: 1.2em;
+        color: var(--b);
+        margin-top: 2px;
+        transition: color 0.2s ease, transform 0.2s ease;
+    }
+    .line:hover .tick {
+        color: var(--t-dim);
+    }
+    .line.read .tick {
+        color: var(--accent);
+        transform: scale(1.05);
+    }
+    .line-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .line-num {
+        color: var(--t-dim);
+        font-size: 0.85em;
+        margin-right: 4px;
+        user-select: none;
+    }
 
-        @media (max-width: 600px) {
-            h1 { font-size: 1.5em; }
-            .l { width: 40px; height: 40px; font-size: 1.2em; }
-            #o { font-size: 1em; padding: 15px; margin: 0 10px 10px; }
-        }
+    /* clickable word style */
+    .word {
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 5px;
+        transition: background 0.15s ease;
+    }
+    .word:hover, .word:focus-visible {
+        background: rgba(76, 175, 80, 0.22);
+        outline: none;
+    }
+
+    /* Floating "go to last read" button */
+    .fab {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        width: 54px;
+        height: 54px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--accent-t);
+        border: none;
+        box-shadow: 0 6px 18px var(--s);
+        font-size: 1.4em;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.15s ease, filter 0.15s ease;
+        z-index: 500;
+    }
+    .fab:hover {
+        transform: translateY(-3px);
+        filter: brightness(1.08);
+    }
+    .fab:active {
+        transform: translateY(0);
+    }
+    .fab.show {
+        display: flex;
+    }
+
+    @media (max-width: 600px) {
+        .h { padding: 14px 16px; }
+        #o { margin: 0 12px 12px; }
+        .filename { max-width: 40vw; }
+        .fab { right: 16px; bottom: 16px; width: 50px; height: 50px; font-size: 1.3em; }
+    }
+
+    /* ---------- Popup / dictionary modal ---------- */
+    .popup {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        display: none;
+        justify-content: center;
+        align-items: flex-end;
+        z-index: 9999;
+        backdrop-filter: blur(2px);
+    }
+    .popup-content {
+        position: relative;
+        background: var(--cbg);
+        color: var(--t);
+        width: 100%;
+        max-height: 85vh;
+        border-radius: 20px 20px 0 0;
+        padding: 20px;
+        overflow-y: auto;
+        animation: slideUp 0.28s ease;
+        border-top: 1px solid var(--b);
+        box-shadow: 0 -8px 30px var(--s);
+    }
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    @keyframes fadeScale {
+        from { transform: scale(0.96); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    @media (min-width: 601px) {
         .popup {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.6);
-  display: none;
-  justify-content: center;
-  align-items: flex-end;
-  z-index: 9999;
-}
+            align-items: center;
+        }
+        .popup-content {
+            width: 90%;
+            max-width: 520px;
+            max-height: 80vh;
+            border-radius: 16px;
+            animation: fadeScale 0.2s ease;
+            border: 1px solid var(--b);
+        }
+    }
 
-.popup-content {
-  background: #fff;
-  width: 100%;
-  max-height: 90%;
-  border-radius: 20px 20px 0 0;
-  padding: 15px;
-  overflow-y: auto;
-  animation: slideUp 0.3s ease;
-  font-family: sans-serif;
-}
+    .close-btn {
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+        position: absolute;
+        right: 14px;
+        top: 10px;
+        color: var(--t-dim);
+        z-index: 2;
+        transition: color 0.15s ease;
+    }
+    .close-btn:hover {
+        color: var(--danger);
+    }
 
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
+    .word-title {
+        font-size: 26px;
+        font-weight: 700;
+        padding-right: 30px;
+    }
+    .phonetic {
+        color: var(--t-dim);
+        margin-bottom: 10px;
+    }
+    .section {
+        margin-top: 16px;
+    }
+    .part {
+        color: var(--accent);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.85em;
+        letter-spacing: 0.04em;
+    }
+    .definition {
+        margin: 8px 0 0 10px;
+    }
+    .example {
+        color: var(--t-dim);
+        font-style: italic;
+        margin: 4px 0 0 20px;
+    }
+    .tense-box {
+        background: var(--cbg2);
+        border: 1px solid var(--b);
+        padding: 12px 14px;
+        border-radius: 12px;
+        margin-top: 14px;
+    }
+    .play-btn {
+        margin: 10px 0;
+        padding: 9px 14px;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: var(--accent-t);
+        cursor: pointer;
+        font-size: 0.95em;
+        transition: filter 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .play-btn:hover {
+        filter: brightness(1.08);
+    }
+    .empty-state, .error-state {
+        text-align: center;
+        color: var(--t-dim);
+        padding: 20px 0;
+    }
+    .spin {
+        display: inline-block;
+        animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
 
-.close-btn {
-  font-size: 25px;
-  float: right;
-  cursor: pointer;
-}
-
-.word-title {
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.phonetic {
-  color: #666;
-  margin-bottom: 10px;
-}
-
-.section {
-  margin-top: 15px;
-}
-
-.part {
-  color: #4CAF50;
-  font-weight: bold;
-}
-
-.definition {
-  margin-left: 10px;
-  margin-bottom: 8px;
-}
-
-.example {
-  color: #777;
-  font-style: italic;
-  margin-left: 15px;
-}
-
-.tense-box {
-  background: #f1f1f1;
-  padding: 10px;
-  border-radius: 10px;
-  margin-top: 10px;
-}
-button {
-  font-size: 14px;
-}
-
-.close-btn {
-  font-size: 28px;
-  cursor: pointer;
-  position: absolute;
-  right: 15px;
-  top: 10px;
-  z-index: 10000; /* 🔥 important */
-}
-
-.popup-content {
-  position: relative; /* needed for absolute close button */
-}
-    </style>
-   
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.23.0/sweetalert2.min.css">
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.23.0/sweetalert2.all.min.js"></script>
 </head>
 <body>
 
 <div class="h">
-    <h1>SRT Viewer</h1>
-    <div style="display: flex; gap: 10px; align-items: center;">
-        <label for="i" class="l"><i class="fas fa-file-import"></i></label>
-        <button class="b" id="w"><i class="fas fa-file-word"></i></button>
-        <button class="b" id="t"><i class="fas fa-moon"></i></button>
+    <div class="h-title">
+        <h1>SRT Viewer</h1>
+        <div class="meta-row">
+            <span class="filename" id="filenameLabel"></span>
+            <span class="progress-pill" id="progressPill"></span>
+        </div>
+    </div>
+    <div class="actions">
+        <label for="i" class="l" title="Import SRT file"><i class="bi bi-file-earmark-arrow-up"></i></label>
+        <button class="b" id="w" title="Download unique words"><i class="bi bi-file-earmark-word"></i></button>
+        <button class="b" id="clr" title="Clear loaded file" disabled><i class="bi bi-trash3"></i></button>
+        <button class="b" id="t" title="Toggle theme"><i class="bi bi-moon-stars"></i></button>
     </div>
 </div>
 
 <input type="file" id="i" accept=".srt">
 <div id="o" class="p">Your extracted dialogue will appear here.</div>
 
+<button class="fab" id="fab" title="Go to last read line"><i class="bi bi-bookmark-check-fill"></i></button>
+
 <div id="dictPopup" class="popup" onclick="outsideClick(event)">
   <div class="popup-content">
-    <span class="close-btn" onclick="closePopup(event)">×</span>
+    <span class="close-btn" onclick="closePopup(event)">&times;</span>
     <div id="popupBody"></div>
   </div>
 </div>
@@ -221,32 +423,172 @@ button {
 <script>
 let srtText = '';
 let currentAudio = null;
-
-// ✅ CLOSE POPUP (FIXED)
-function closePopup(e) {
-    if (e) e.stopPropagation();
-    document.getElementById("dictPopup").style.display = "none";
-
-    // stop audio if playing
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-    }
-}
-
-// ✅ CLICK OUTSIDE CLOSE
-function outsideClick(e) {
-    if (e.target.id === "dictPopup") {
-        closePopup();
-    }
-}
+let currentFilename = '';
+let totalLineCount = 0;
+let readLines = new Set();
+let lastReadIdx = null;
 
 const output = document.getElementById('o');
 const fileInput = document.getElementById('i');
+const filenameLabel = document.getElementById('filenameLabel');
+const progressPill = document.getElementById('progressPill');
+const clearBtn = document.getElementById('clr');
+const themeBtn = document.getElementById('t');
+const themeIcon = themeBtn.querySelector('i');
+const fab = document.getElementById('fab');
 
-// THEME
-document.getElementById('t').addEventListener('click', () => {
-    document.body.classList.toggle('dark');
+const STORAGE_KEY = 'srtViewer.content';
+const STORAGE_NAME_KEY = 'srtViewer.filename';
+const STORAGE_THEME_KEY = 'srtViewer.theme';
+const STORAGE_READ_KEY = 'srtViewer.readLines';
+const STORAGE_LASTREAD_KEY = 'srtViewer.lastRead';
+
+// ---------- THEME ----------
+function applyTheme(isDark) {
+    document.body.classList.toggle('dark', isDark);
+    themeIcon.className = isDark ? 'bi bi-sun' : 'bi bi-moon-stars';
+    try { localStorage.setItem(STORAGE_THEME_KEY, isDark ? 'dark' : 'light'); } catch (e) {}
+}
+
+themeBtn.addEventListener('click', () => {
+    applyTheme(!document.body.classList.contains('dark'));
+});
+
+// ---------- RENDER ----------
+function renderSrt(text) {
+    const lines = text.split('\n');
+    let dialogueLines = [];
+
+    for (let s of lines) {
+        s = s.trim();
+        if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
+            dialogueLines.push(s);
+        }
+    }
+
+    totalLineCount = dialogueLines.length;
+
+    if (totalLineCount === 0) {
+        output.innerHTML = "No readable dialogue found.";
+        output.classList.add('p');
+        clearBtn.disabled = true;
+        updateProgress();
+        updateFab();
+        return;
+    }
+
+    output.classList.remove('p');
+    let html = '';
+    dialogueLines.forEach((s, idx) => {
+        const words = s.split(/\s+/).map(w => {
+            return `<span class="word" role="button" tabindex="0">${escapeHtml(w)}</span>`;
+        }).join(' ');
+
+        const isRead = readLines.has(idx);
+        html += `
+            <div class="line${isRead ? ' read' : ''}" data-idx="${idx}">
+                <i class="bi ${isRead ? 'bi-check-circle-fill' : 'bi-circle'} tick"></i>
+                <div class="line-body"><span class="line-num">${idx + 1}.</span> ${words}</div>
+            </div>`;
+    });
+
+    output.innerHTML = html;
+    clearBtn.disabled = false;
+    updateProgress();
+    updateFab();
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateProgress() {
+    if (totalLineCount > 0) {
+        progressPill.style.display = 'inline-block';
+        progressPill.innerHTML = `<i class="bi bi-check2-circle"></i> ${readLines.size}/${totalLineCount} read`;
+    } else {
+        progressPill.style.display = 'none';
+    }
+}
+
+function updateFab() {
+    fab.classList.toggle('show', lastReadIdx !== null && totalLineCount > 0);
+}
+
+function persistReadState() {
+    try {
+        localStorage.setItem(STORAGE_READ_KEY, JSON.stringify(Array.from(readLines)));
+        if (lastReadIdx === null) {
+            localStorage.removeItem(STORAGE_LASTREAD_KEY);
+        } else {
+            localStorage.setItem(STORAGE_LASTREAD_KEY, String(lastReadIdx));
+        }
+    } catch (e) {}
+}
+
+function toggleLineRead(lineEl) {
+    const idx = parseInt(lineEl.dataset.idx, 10);
+    const tickIcon = lineEl.querySelector('.tick');
+    if (readLines.has(idx)) {
+        readLines.delete(idx);
+        lineEl.classList.remove('read');
+        tickIcon.className = 'bi bi-circle tick';
+        if (lastReadIdx === idx) {
+            // fall back to the highest remaining read index, if any
+            lastReadIdx = readLines.size ? Math.max(...readLines) : null;
+        }
+    } else {
+        readLines.add(idx);
+        lineEl.classList.add('read');
+        tickIcon.className = 'bi bi-check-circle-fill tick';
+        lastReadIdx = idx;
+    }
+    updateProgress();
+    updateFab();
+    persistReadState();
+}
+
+function loadContent(text, filename) {
+    srtText = text;
+    currentFilename = filename || '';
+    filenameLabel.textContent = currentFilename;
+    readLines = new Set();
+    lastReadIdx = null;
+    renderSrt(text);
+    try {
+        localStorage.setItem(STORAGE_KEY, text);
+        localStorage.setItem(STORAGE_NAME_KEY, currentFilename);
+        localStorage.removeItem(STORAGE_READ_KEY);
+        localStorage.removeItem(STORAGE_LASTREAD_KEY);
+    } catch (e) {
+        console.warn('Could not persist file locally', e);
+    }
+}
+
+function clearContent() {
+    srtText = '';
+    currentFilename = '';
+    totalLineCount = 0;
+    readLines = new Set();
+    lastReadIdx = null;
+    filenameLabel.textContent = '';
+    output.innerHTML = 'Your extracted dialogue will appear here.';
+    output.classList.add('p');
+    clearBtn.disabled = true;
+    updateProgress();
+    updateFab();
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_NAME_KEY);
+        localStorage.removeItem(STORAGE_READ_KEY);
+        localStorage.removeItem(STORAGE_LASTREAD_KEY);
+    } catch (e) {}
+}
+
+clearBtn.addEventListener('click', () => {
+    if (confirm('Remove the currently loaded file?')) {
+        clearContent();
+    }
 });
 
 // LOAD FILE
@@ -256,51 +598,73 @@ fileInput.addEventListener('change', e => {
 
     const reader = new FileReader();
     reader.onload = e => {
-        srtText = e.target.result;
-        const lines = srtText.split('\n');
-
-        let t = '';
-        let index = 1;
-
-        for (let s of lines) {
-            s = s.trim();
-            if (!s.includes('-->') && isNaN(parseInt(s)) && s !== '') {
-
-                let words = s.split(/\s+/).map(w => {
-                    return `<span class="word">${w}</span>`;
-                }).join(' ');
-
-                t += index + ". " + words + "<br><br>";
-                index++;
-            }
-        }
-
-        output.innerHTML = t || "No readable dialogue found.";
-        output.classList.toggle('p', !t);
+        loadContent(e.target.result, f.name);
     };
-
     reader.readAsText(f);
+    fileInput.value = '';
 });
 
-// CLICK WORD
+// CLICK / KEYBOARD on a line: word -> dictionary, elsewhere -> toggle read
 output.addEventListener('click', (e) => {
-    if (e.target.classList.contains('word')) {
-        let word = e.target.textContent.replace(/[^a-zA-Z']/g, '');
-        if (word) {
-            showWordDetails(word.toLowerCase());
-        }
+    const wordEl = e.target.closest('.word');
+    if (wordEl) {
+        handleWordClick(wordEl);
+        return;
     }
+    const lineEl = e.target.closest('.line');
+    if (lineEl) {
+        toggleLineRead(lineEl);
+    }
+});
+output.addEventListener('keydown', (e) => {
+    if (e.target.classList.contains('word') && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        handleWordClick(e.target);
+    }
+});
+function handleWordClick(el) {
+    let word = el.textContent.replace(/[^a-zA-Z']/g, '');
+    if (word) showWordDetails(word.toLowerCase());
+}
+
+// GO TO LAST READ LINE
+fab.addEventListener('click', () => {
+    if (lastReadIdx === null) return;
+    const target = output.querySelector(`.line[data-idx="${lastReadIdx}"]`);
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.remove('flash');
+        // force reflow so the animation can restart if triggered repeatedly
+        void target.offsetWidth;
+        target.classList.add('flash');
+        setTimeout(() => target.classList.remove('flash'), 1200);
+    }
+});
+
+// ✅ CLOSE POPUP
+function closePopup(e) {
+    if (e) e.stopPropagation();
+    document.getElementById("dictPopup").style.display = "none";
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+    }
+}
+function outsideClick(e) {
+    if (e.target.id === "dictPopup") closePopup();
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePopup();
 });
 
 // UNIQUE WORD DOWNLOAD
 document.getElementById('w').addEventListener('click', () => {
     if (!srtText) {
-        alert("Import SRT first!");
+        Swal.fire({ icon: 'info', title: 'Nothing to export', text: 'Import an SRT file first.' });
         return;
     }
 
     let wordsSet = new Set();
-
     srtText.split('\n').forEach(line => {
         line = line.trim();
         if (!line.includes('-->') && isNaN(parseInt(line)) && line !== '') {
@@ -317,8 +681,9 @@ document.getElementById('w').addEventListener('click', () => {
     const blob = new Blob([textContent], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'nkn_words.txt';
+    a.download = (currentFilename ? currentFilename.replace(/\.srt$/i, '') : 'srt') + '_words.txt';
     a.click();
+    URL.revokeObjectURL(a.href);
 });
 
 // ✅ GET REAL WORD FORMS (TENSES)
@@ -326,7 +691,6 @@ async function getWordForms(word) {
     try {
         const res = await fetch(`https://api.datamuse.com/words?rel_inflected=${word}`);
         const data = await res.json();
-
         return data.map(d => d.word);
     } catch {
         return [];
@@ -337,87 +701,13 @@ async function getWordForms(word) {
 async function showWordDetails(word) {
     if (!word) return;
 
+    document.getElementById("popupBody").innerHTML = `<div class="empty-state"><i class="bi bi-arrow-repeat spin"></i> Looking up "${escapeHtml(word)}"...</div>`;
+    document.getElementById("dictPopup").style.display = "flex";
+
     try {
         const [dictRes, forms] = await Promise.all([
             fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`),
             getWordForms(word)
         ]);
 
-        const data = await dictRes.json();
-
-        if (!Array.isArray(data)) {
-            alert("No results found");
-            return;
-        }
-
-        const entry = data[0];
-
-        // Pronunciation
-        let phonetic = entry.phonetic || "";
-        let audio = "";
-
-        if (entry.phonetics) {
-            const audioObj = entry.phonetics.find(p => p.audio);
-            if (audioObj) {
-                audio = audioObj.audio;
-                phonetic = audioObj.text || phonetic;
-            }
-        }
-
-        let html = `
-            <div class="word-title">${entry.word}</div>
-            ${phonetic ? `<div class="phonetic">${phonetic}</div>` : ""}
-            
-            ${audio ? `
-                <button onclick="playAudio('${audio}')"
-                style="margin:10px 0;padding:8px 12px;border:none;border-radius:8px;background:#4CAF50;color:#fff;">
-                🔊 Play Pronunciation
-                </button>
-            ` : ""}
-        `;
-
-        // ✅ REAL WORD FORMS
-        if (forms.length > 0) {
-            html += `
-                <div class="section tense-box">
-                    <b>Word Forms:</b><br>
-                    ${forms.slice(0, 8).join(", ")}
-                </div>
-            `;
-        }
-
-        // Meanings
-        entry.meanings.forEach((meaning) => {
-            html += `<div class="section">`;
-            html += `<div class="part">${meaning.partOfSpeech}</div>`;
-
-            meaning.definitions.forEach(def => {
-                html += `<div class="definition">• ${def.definition}</div>`;
-                if (def.example) {
-                    html += `<div class="example">Example: ${def.example}</div>`;
-                }
-            });
-
-            html += `</div>`;
-        });
-
-        document.getElementById("popupBody").innerHTML = html;
-        document.getElementById("dictPopup").style.display = "flex";
-
-    } catch (err) {
-        console.error(err);
-        alert("Error fetching data");
-    }
-}
-
-// 🔊 AUDIO (FIXED: no overlap)
-function playAudio(url) {
-    if (currentAudio) {
-        currentAudio.pause();
-    }
-    currentAudio = new Audio(url);
-    currentAudio.play();
-}
-</script>
-</body>
-</html>
+        const data = await dictRes.js
